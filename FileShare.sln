@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileShare.Business", "FileShare.Business\FileShare.Business.csproj", "{1D87208C-E0B8-4FB6-B3FB-EF57FEEFE468}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileShare.Business", "FileShare.Business\FileShare.Business.csproj", "{539A5721-73FB-4C9A-888F-A8A681E8E16C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -8,9 +8,9 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{1D87208C-E0B8-4FB6-B3FB-EF57FEEFE468}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1D87208C-E0B8-4FB6-B3FB-EF57FEEFE468}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1D87208C-E0B8-4FB6-B3FB-EF57FEEFE468}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1D87208C-E0B8-4FB6-B3FB-EF57FEEFE468}.Release|Any CPU.Build.0 = Release|Any CPU
+		{539A5721-73FB-4C9A-888F-A8A681E8E16C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{539A5721-73FB-4C9A-888F-A8A681E8E16C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{539A5721-73FB-4C9A-888F-A8A681E8E16C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{539A5721-73FB-4C9A-888F-A8A681E8E16C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
