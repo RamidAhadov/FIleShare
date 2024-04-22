@@ -7,4 +7,8 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\FileShare.Business\FileShare.Business.csproj" />
+    </ItemGroup>
+
 </Project>
