@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -10,22 +11,30 @@ public class DeviceManager:IDeviceManager
 {
     public List<string> GetLocalDeviceIPs(string? subnetMask = default)
     {
-        string IP = GetLocalIPAddress();
+        var localDeviceIPs = new List<string>();
+        var IP = GetLocalIPAddress();
+        var sw = Stopwatch.StartNew();
         int[] loopCounts = LoopCounts(subnetMask);
-        for (int i = 0; i < loopCounts[0]; i++)
+
+        var fullIPs = AllAvailableIPs(IP, loopCounts);
+        foreach (var ip in fullIPs)
         {
-            string subIP = IP[..IP.LastIndexOf('.')];
-            string lastOcta = subIP[(subIP.LastIndexOf('.') + 1)..];
-            lastOcta = (int.Parse(lastOcta) + i).ToString();
-            subIP = subIP[..(subIP.LastIndexOf('.') + 1)];
-            subIP += lastOcta + ".";
-            for (int j = 1; j < loopCounts[1]; j++)
+            Ping ping = new Ping();
+            var reply = ping.Send(ip, 50);
+            if (reply.Status == IPStatus.Success)
             {
-                string fullIP = subIP + j;
+                localDeviceIPs.Add(ip);
             }
         }
         
-        return new List<string>();
+
+        Console.WriteLine(sw.ElapsedMilliseconds);
+        foreach (var localDeviceIP in localDeviceIPs)
+        {
+            Console.WriteLine(localDeviceIP);
+        }
+
+        return localDeviceIPs;
     }
 
     public string? GetSubnetMask()
@@ -93,5 +102,25 @@ public class DeviceManager:IDeviceManager
         }
 
         return loopCounts;
+    }
+
+    private List<string> AllAvailableIPs(string IP, int[] loopCounts)
+    {
+        var IPs = new List<string>();
+        for (int i = 0; i < loopCounts[0]; i++)
+        {
+            var subIP = IP[..IP.LastIndexOf('.')];
+            var lastOcta = subIP[(subIP.LastIndexOf('.') + 1)..];
+            lastOcta = (int.Parse(lastOcta) + i).ToString();
+            subIP = subIP[..(subIP.LastIndexOf('.') + 1)];
+            subIP += lastOcta + ".";
+            for (int j = 1; j < loopCounts[1]; j++)
+            {
+                string fullIP = subIP + j;
+                IPs.Add(fullIP);
+            }
+        }
+        
+        return IPs;
     }
 }
