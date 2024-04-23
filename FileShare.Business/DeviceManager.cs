@@ -47,6 +47,32 @@ public class DeviceManager:IDeviceManager
         return localDeviceIPs;
     }
 
+    public async Task<List<string>> GetLocalDeviceIPsAsync(string? subnetMask = default, int timeOut = 500)
+    {
+        var localDeviceIPs = new List<string>();
+        var IP = GetLocalIPAddress();
+        int[] loopCounts = LoopCounts(subnetMask);
+
+        var fullIPs = AllAvailableIPs(IP, loopCounts);
+        var tasks = new Task[100];
+        int attempt = 0;
+        foreach (var ip in fullIPs)
+        {
+            if (attempt == 100)
+            {
+                attempt = 0;
+            }
+
+            tasks[attempt] = Task.Run(async() => await SendPingAsync(ip, localDeviceIPs, timeOut));
+            attempt++;
+        }
+
+        await Task.WhenAll(tasks);
+
+        return localDeviceIPs;
+    }
+
+
     public string? GetSubnetMask()
     {
         NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
@@ -138,6 +164,19 @@ public class DeviceManager:IDeviceManager
     {
         Ping ping = new Ping();
         var reply = ping.Send(ip, timeOut);
+        if (reply.Status == IPStatus.Success)
+        {
+            lock (lockObject)
+            {
+                successIPs.Add(ip);
+            }
+        }
+    }
+    
+    private async Task SendPingAsync(string ip, List<string> successIPs, int timeOut)
+    {
+        Ping ping = new Ping();
+        var reply = await ping.SendPingAsync(ip, timeOut);
         if (reply.Status == IPStatus.Success)
         {
             lock (lockObject)
