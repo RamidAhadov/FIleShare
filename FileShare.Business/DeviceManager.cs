@@ -9,7 +9,8 @@ namespace FileShare.Business;
 
 public class DeviceManager:IDeviceManager
 {
-    public List<string> GetLocalDeviceIPs(string? subnetMask = default)
+    private static readonly object lockObject = new ();
+    public List<string> GetLocalDeviceIPs(string? subnetMask = default, int timeOut = 500)
     {
         var localDeviceIPs = new List<string>();
         var IP = GetLocalIPAddress();
@@ -17,14 +18,23 @@ public class DeviceManager:IDeviceManager
         int[] loopCounts = LoopCounts(subnetMask);
 
         var fullIPs = AllAvailableIPs(IP, loopCounts);
+        var threads = new Thread[100];
+        int attempt = 0;
         foreach (var ip in fullIPs)
         {
-            Ping ping = new Ping();
-            var reply = ping.Send(ip, 50);
-            if (reply.Status == IPStatus.Success)
+            if (attempt == 100)
             {
-                localDeviceIPs.Add(ip);
+                attempt = 0;
             }
+
+            threads[attempt] = new Thread(() => SendPing(ip, localDeviceIPs, timeOut));
+            threads[attempt].Start();
+            attempt++;
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
         }
         
 
@@ -60,8 +70,8 @@ public class DeviceManager:IDeviceManager
                 }
             }
         }
-        
-        throw new NetworkInformationException();
+
+        return null;
     }
     
     static string GetLocalIPAddress()
@@ -122,5 +132,18 @@ public class DeviceManager:IDeviceManager
         }
         
         return IPs;
+    }
+
+    private void SendPing(string ip, List<string> successIPs, int timeOut)
+    {
+        Ping ping = new Ping();
+        var reply = ping.Send(ip, timeOut);
+        if (reply.Status == IPStatus.Success)
+        {
+            lock (lockObject)
+            {
+                successIPs.Add(ip);
+            }
+        }
     }
 }
