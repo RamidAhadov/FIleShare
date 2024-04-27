@@ -47,14 +47,13 @@ public class DeviceManager:IDeviceManager
         return localDeviceIPs;
     }
 
-    public async Task<List<string>> GetLocalDeviceIPsAsync(string? subnetMask = default, int timeOut = 500)
+    public async IAsyncEnumerable<string> GetLocalDeviceIPsAsync(string? subnetMask = default, int timeOut = 500)
     {
-        var localDeviceIPs = new List<string>();
         var IP = GetLocalIPAddress();
         int[] loopCounts = LoopCounts(subnetMask);
 
         var fullIPs = AllAvailableIPs(IP, loopCounts);
-        var tasks = new Task[100];
+        var tasks = new Task<string?>[100];
         int attempt = 0;
         foreach (var ip in fullIPs)
         {
@@ -63,16 +62,20 @@ public class DeviceManager:IDeviceManager
                 attempt = 0;
             }
 
-            tasks[attempt] = Task.Run(async() => await SendPingAsync(ip, localDeviceIPs, timeOut));
+            tasks[attempt] = SendPingAsync(ip, timeOut);
             attempt++;
         }
 
-        await Task.WhenAll(tasks);
-
-        return localDeviceIPs;
+        foreach (var task in tasks)
+        {
+            string? successIP = await task;
+            if (successIP != null)
+            {
+                yield return successIP;
+            }
+        }
     }
-
-
+    
     public string? GetSubnetMask()
     {
         NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
@@ -172,17 +175,16 @@ public class DeviceManager:IDeviceManager
             }
         }
     }
-    
-    private async Task SendPingAsync(string ip, List<string> successIPs, int timeOut)
+
+    private async Task<string?> SendPingAsync(string ip, int timeOut)
     {
         Ping ping = new Ping();
         var reply = await ping.SendPingAsync(ip, timeOut);
         if (reply.Status == IPStatus.Success)
         {
-            lock (lockObject)
-            {
-                successIPs.Add(ip);
-            }
+            return ip;
         }
+
+        return null;
     }
 }
