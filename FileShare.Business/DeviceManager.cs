@@ -36,13 +36,6 @@ public class DeviceManager:IDeviceManager
         {
             thread.Join();
         }
-        
-
-        Console.WriteLine(sw.ElapsedMilliseconds);
-        foreach (var localDeviceIP in localDeviceIPs)
-        {
-            Console.WriteLine(localDeviceIP);
-        }
 
         return localDeviceIPs;
     }
@@ -53,22 +46,17 @@ public class DeviceManager:IDeviceManager
         int[] loopCounts = LoopCounts(subnetMask);
 
         var fullIPs = AllAvailableIPs(IP, loopCounts);
-        var tasks = new Task<string?>[100];
-        int attempt = 0;
+        var tasks = new List<Task<string?>>();
         foreach (var ip in fullIPs)
         {
-            if (attempt == 100)
-            {
-                attempt = 0;
-            }
-
-            tasks[attempt] = SendPingAsync(ip, timeOut);
-            attempt++;
+            tasks.Add(SendPingAsync(ip, timeOut));
         }
 
-        foreach (var task in tasks)
+        while (tasks.Count > 0)
         {
-            string? successIP = await task;
+            var completedTask = await Task.WhenAny(tasks);
+            tasks.Remove(completedTask);
+            string? successIP = await completedTask;
             if (successIP != null)
             {
                 yield return successIP;
@@ -171,6 +159,7 @@ public class DeviceManager:IDeviceManager
         {
             lock (lockObject)
             {
+                Console.WriteLine(ip);
                 successIPs.Add(ip);
             }
         }
