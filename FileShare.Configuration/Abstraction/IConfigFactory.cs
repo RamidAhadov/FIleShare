@@ -2,7 +2,7 @@ using FileShare.Configuration.ConfigItem.Abstraction;
 
 namespace FileShare.Configuration.Abstraction;
 
-public interface IConfiguration
+public interface IConfigFactory
 {
     IConfigItem GetConfiguration(string section);
 }

@@ -1,15 +1,16 @@
 using System.Reflection;
+using FileShare.Configuration.Abstraction;
 using FileShare.Configuration.ConfigItem.Abstraction;
+using FileShare.Configuration.Exceptions;
 using Microsoft.Extensions.Configuration;
-using IConfiguration = FileShare.Configuration.Abstraction.IConfiguration;
 
 namespace FileShare.Configuration.Concrete;
 
-public class Configuration:IConfiguration
+public class ConfigFactory:IConfigFactory
 {
     private readonly IConfigurationRoot _configuration;
 
-    public Configuration()
+    public ConfigFactory()
     {
         var builder = new ConfigurationBuilder()
             .AddJsonFile("ConfigItem/appsettings.json");
@@ -29,6 +30,7 @@ public class Configuration:IConfiguration
                 return configInstance;
             }
         }
-        return null;
+
+        throw new ConfigSectionException(section);
     }
 }
