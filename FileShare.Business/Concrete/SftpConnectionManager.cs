@@ -2,7 +2,7 @@ using System.Diagnostics;
 using FileShare.Business.Abstraction;
 using FileShare.Configuration.Abstraction;
 using FileShare.Configuration.ConfigItem.Concrete;
-using Microsoft.DotNet.Scaffolding.Shared.CodeModifier.CodeChange;
+using FluentResults;
 using NLog;
 using NuGet.Protocol;
 using Renci.SshNet;
@@ -32,7 +32,7 @@ public class SftpConnectionManager:IConnectionManager
         }
     }
     
-    public async Task<SftpClient> ConnectAsServerAsync(CancellationToken token)
+    public async Task<Result<SftpClient>> ConnectAsServerAsync(CancellationToken token)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -42,39 +42,51 @@ public class SftpConnectionManager:IConnectionManager
             await sftpClient.ConnectAsync(token);
             _logger.Info(new { Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(ConnectAsServerAsync), Message = "Connected to SFTP server as server." }.ToJson());
 
-            return sftpClient;
+            return Result.Ok(sftpClient);
         }
         catch (OperationCanceledException)
         {
             _logger.Info(new {Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(SftpConnectionManager), Message = "Operation was cancelled."});
-            throw;
+            
+            return Result.Fail(errorMessage: "Operation was cancelled.");
         }
         catch (Exception e)
         {
             _logger.Error(new {Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(ConnectAsServerAsync), Message = e.InnerException?.Message ?? e.Message}.ToJson());
-            throw;
+
+            return Result.Fail(errorMessage: e.InnerException?.Message ?? e.Message);
         }
     }
 
-    public async Task UploadFileAsync(SftpClient client, string filePath)
+    public async Task<Result<string>> UploadFileAsync(SftpClient client, string filePath, CancellationToken token)
     {
         var sw = Stopwatch.StartNew();
         try
         {
             using (var fileStream = new FileStream(filePath,FileMode.Open))
             {
+                var fileName = Path.GetFileName(filePath);
                 await Task.Run(() =>
                 {
-                    client.UploadFile(fileStream, _sftpDirectory.Path, ProgressCallback);
-                });
+                    client.UploadFile(fileStream, _sftpDirectory.Path + fileName, ProgressCallback);
+                }, token);
                 
-                _logger.Info(new {Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(UploadFileAsync), Message = $"File uploaded from {filePath} to {_sftpDirectory.Path}."});
+                _logger.Info(new {Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(UploadFileAsync), Message = $"File uploaded from {filePath} to {_sftpDirectory.Path} directory."});
+
+                return Result.Ok(fileName);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Info(new {Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(UploadFileAsync), Message = "Operation was cancelled."});
+            
+            return Result.Fail(errorMessage: "Operation was cancelled.");
         }
         catch (Exception e)
         {
             _logger.Error(new {Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(UploadFileAsync), Message = e.InnerException?.Message ?? e.Message}.ToJson());
-            await Task.CompletedTask;
+            
+            return Result.Fail(errorMessage: e.InnerException?.Message ?? e.Message);
         }
     }
 
