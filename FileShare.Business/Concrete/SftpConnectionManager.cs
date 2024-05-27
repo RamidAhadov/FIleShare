@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using FileShare.Business.Abstraction;
 using FileShare.Configuration.Abstraction;
 using FileShare.Configuration.ConfigItem.Concrete;
@@ -58,14 +60,14 @@ public class SftpConnectionManager:IConnectionManager
         }
     }
 
-    public async Task<Result<string>> UploadFileAsync(SftpClient client, string filePath, CancellationToken token)
+    public async Task<Result<string>> UploadFileAsync(SftpClient client, string filePath, string receiverIp, CancellationToken token)
     {
         var sw = Stopwatch.StartNew();
         try
         {
             using (var fileStream = new FileStream(filePath,FileMode.Open))
             {
-                var fileName = Path.GetFileName(filePath);
+                var fileName = Path.GetFileName(filePath) + "-" + receiverIp;
                 await Task.Run(() =>
                 {
                     client.UploadFile(fileStream, _sftpDirectory.Path + fileName, ProgressCallback);
