@@ -1,11 +1,10 @@
 using System.Diagnostics;
-using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using FileShare.Business.Abstraction;
 using FileShare.Business.Constants;
 
-namespace FileShare.Business;
+namespace FileShare.Business.Concrete;
 
 public class DeviceManager:IDeviceManager
 {
@@ -90,7 +89,18 @@ public class DeviceManager:IDeviceManager
 
         return null;
     }
-    
+
+    public async Task<bool> IsOnline(string ip)
+    {
+        var pingResult = await this.SendPingAsync(ip,500);
+        if (pingResult != null)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     static string GetLocalIPAddress()
     {
         NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
@@ -159,7 +169,6 @@ public class DeviceManager:IDeviceManager
         {
             lock (lockObject)
             {
-                Console.WriteLine(ip);
                 successIPs.Add(ip);
             }
         }
