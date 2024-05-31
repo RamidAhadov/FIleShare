@@ -5,13 +5,14 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using FileShare.Business.Abstraction;
+using FileShare.Business.Constants;
 using FileShare.Business.Models;
 using FileShare.Configuration.Abstraction;
 using FileShare.Configuration.ConfigItem.Concrete;
 using FluentResults;
+using Newtonsoft.Json;
 using NLog;
 using NuGet.Protocol;
-using NuGet.Protocol.Plugins;
 
 namespace FileShare.Business.Concrete;
 
@@ -179,18 +180,18 @@ public class TcpNotifyManager : INotifyManager
                 }.ToJson());
 
                 var tcpClient = await _tcpResponseReceiver.AcceptTcpClientAsync(token);
-                var response = await GetMessage(tcpClient, token);
+                var response = await this.GetMessage(tcpClient, token);
                 
                 ArgumentNullException.ThrowIfNull(response);
                 
-                while (!IsResponse(response.Message))
+                while (!this.IsResponse(response, destinationIp))
                 {
                     _logger.Warn(new
                     {
                         Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(SendRequestAsync),
                         Message = $"Response is not correct: {response}.", DestinationIp = destinationIp
                     }.ToJson());
-                    response = await GetMessage(tcpClient, token);
+                    response = await this.GetMessage(tcpClient, token);
                 }
 
                 if (ResponseResult(response.Message))
@@ -237,12 +238,20 @@ public class TcpNotifyManager : INotifyManager
 
     #endregion
 
-    public async Task<Result> SendResponseAsync(bool response, string destinationIp, int port, CancellationToken token)
+    #region Send confirm response
+    
+    public async Task<Result> SendResponseAsync(Responses response, string destinationIp, int port, CancellationToken token)
     {
         var sw = Stopwatch.StartNew();
         try
         {
-            await SendMessageAsync(destinationIp, port, response.ToString(), token);
+            var model = new MessageModel
+            {
+                Message = response.ToString(),
+                Endpoint = _myIp
+            };
+            var message = JsonConvert.SerializeObject(model);
+            await SendMessageAsync(destinationIp, port, message, token);
             _logger.Info(new
             {
                 Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(SendResponseAsync),
@@ -272,6 +281,10 @@ public class TcpNotifyManager : INotifyManager
             return Result.Fail(e.InnerException?.Message ?? e.Message);
         }
     }
+    
+    #endregion
+
+    #region Get request
 
     public async IAsyncEnumerable<MessageModel?> GetReceivedFilenameAsync([EnumeratorCancellation] CancellationToken token)
     {
@@ -289,13 +302,24 @@ public class TcpNotifyManager : INotifyManager
         }
     }
 
+    #endregion
+
+    #region Filename send
+
     public async Task<Result> SendFilenameAsync(string destinationIp, int port, string filename,
         CancellationToken token)
     {
         var sw = Stopwatch.StartNew();
         try
         {
-            await this.SendMessageAsync(destinationIp, port, filename, token);
+            var model = new MessageModel
+            {
+                Message = filename,
+                Endpoint = _myIp
+            };
+            var message = JsonConvert.SerializeObject(model);
+            
+            await this.SendMessageAsync(destinationIp, port, message, token);
             _logger.Info(new
             {
                 Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(SendFilenameAsync),
@@ -330,6 +354,7 @@ public class TcpNotifyManager : INotifyManager
         }
     }
 
+    #endregion
 
     private async IAsyncEnumerable<TcpClient> AcceptClientsAsync(TcpListener? listener)
     {
@@ -362,13 +387,8 @@ public class TcpNotifyManager : INotifyManager
         {
             try
             {
-                var endPointIP = this.GetRemoteIpFromTcpClient(client);
                 var message = await Task.Run(() => this.ReceiveMessage(client), token);
-                var messageModel = new MessageModel
-                {
-                    Message = message,
-                    Endpoint = endPointIP
-                };
+                var messageModel = JsonConvert.DeserializeObject<MessageModel>(message);
 
                 return messageModel;
             }
@@ -462,9 +482,9 @@ public class TcpNotifyManager : INotifyManager
         clients.Remove(client);
     }
 
-    private bool IsResponse(string stream)
+    private bool IsResponse(MessageModel response, string destinationIp)
     {
-        if (stream.EndsWith(_myIp))
+        if (response.Endpoint == destinationIp)
         {
             return true;
         }
@@ -482,7 +502,7 @@ public class TcpNotifyManager : INotifyManager
 
     private bool ResponseResult(string response)
     {
-        return bool.Parse(response);
+        return response == Responses.Accept.ToString();
     }
 
     private string GetCurrentIPv4Address()
@@ -547,11 +567,11 @@ public class TcpNotifyManager : INotifyManager
         return message[(dashIndex + 1)..];
     }
 
-    private async Task SendMessageAsync(string destinationIp, int port, string response, CancellationToken token)
+    private async Task SendMessageAsync(string destinationIp, int port, string message, CancellationToken token)
     {
         var tcpClient = new TcpClient(destinationIp, port);
         var stream = tcpClient.GetStream();
-        var data = Encoding.UTF8.GetBytes(response);
+        var data = Encoding.UTF8.GetBytes(message);
         await stream.WriteAsync(data, token);
         await stream.FlushAsync(token);
     }
