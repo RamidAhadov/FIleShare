@@ -14,7 +14,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="ConfigItem\appsettings.json">
+      <None Update="ConfigItem\Settings\appsettings.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>
