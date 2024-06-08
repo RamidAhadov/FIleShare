@@ -13,7 +13,7 @@ public class ConfigFactory:IConfigFactory
     public ConfigFactory()
     {
         var builder = new ConfigurationBuilder()
-            .AddJsonFile("ConfigItem/appsettings.json");
+            .AddJsonFile("ConfigItem/Settings/appsettings.json");
         _configuration = builder.Build();
     }
     
