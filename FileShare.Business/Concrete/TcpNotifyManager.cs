@@ -46,7 +46,7 @@ public class TcpNotifyManager : INotifyManager
 
     #region Create TCP listener
 
-    public async Task<Result<TcpListener>> CreateListenerAsync(CancellationToken token)
+    public async Task<Result> CreateListenerAsync(CancellationToken token)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -61,7 +61,7 @@ public class TcpNotifyManager : INotifyManager
                     $"Tcp listener started and listening on: {_tcpListenerParameters.Host}:{_tcpListenerParameters.Port}"
             }.ToJson());
 
-            return Result.Ok(_tcpListener);
+            return Result.Ok();
         }
         catch (OperationCanceledException)
         {
@@ -85,7 +85,7 @@ public class TcpNotifyManager : INotifyManager
         }
     }
 
-    public async Task<Result<TcpListener>> CreateRequestReceiverAsync(CancellationToken token)
+    public async Task<Result> CreateRequestReceiverAsync(CancellationToken token)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -99,7 +99,7 @@ public class TcpNotifyManager : INotifyManager
                     $"Tcp request receiver started and listening on: {_tcpRequestReceiverParameters.Host}:{_tcpRequestReceiverParameters.Port}"
             }.ToJson());
 
-            return Result.Ok(_tcpRequestReceiver);
+            return Result.Ok();
         }
         catch (OperationCanceledException)
         {
@@ -123,7 +123,7 @@ public class TcpNotifyManager : INotifyManager
         }
     }
 
-    public async Task<Result<TcpListener>> CreateResponseReceiverAsync(CancellationToken token)
+    public async Task<Result> CreateResponseReceiverAsync(CancellationToken token)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -137,7 +137,7 @@ public class TcpNotifyManager : INotifyManager
                     $"Tcp response receiver started and listening on: {_tcpResponseReceiverParameters.Host}:{_tcpResponseReceiverParameters.Port}"
             }.ToJson());
 
-            return Result.Ok(_tcpResponseReceiver);
+            return Result.Ok();
         }
         catch (OperationCanceledException)
         {
@@ -165,7 +165,7 @@ public class TcpNotifyManager : INotifyManager
 
     #region Send request to receiver
 
-    public async Task<Result> SendRequestAsync(string destinationIp, int port, CancellationToken token)
+    public async Task<Result> SendRequestAsync(string destinationIp, CancellationToken token, int port = 8990)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -181,9 +181,9 @@ public class TcpNotifyManager : INotifyManager
 
                 var tcpClient = await _tcpResponseReceiver.AcceptTcpClientAsync(token);
                 var response = await this.GetMessage(tcpClient, token);
-                
+
                 ArgumentNullException.ThrowIfNull(response);
-                
+
                 while (!this.IsResponse(response, destinationIp))
                 {
                     _logger.Warn(new
@@ -239,8 +239,9 @@ public class TcpNotifyManager : INotifyManager
     #endregion
 
     #region Send confirm response
-    
-    public async Task<Result> SendResponseAsync(Responses response, string destinationIp, int port, CancellationToken token)
+
+    public async Task<Result> SendResponseAsync(Responses response, string destinationIp, CancellationToken token,
+        int port = 8991)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -281,12 +282,13 @@ public class TcpNotifyManager : INotifyManager
             return Result.Fail(e.InnerException?.Message ?? e.Message);
         }
     }
-    
+
     #endregion
 
     #region Get request
 
-    public async IAsyncEnumerable<MessageModel?> GetReceivedFilenameAsync([EnumeratorCancellation] CancellationToken token)
+    public async IAsyncEnumerable<MessageModel?> GetReceivedFilenameAsync(
+        [EnumeratorCancellation] CancellationToken token)
     {
         await foreach (var client in this.AcceptClientsAsync(_tcpListener).WithCancellation(token))
         {
@@ -306,8 +308,8 @@ public class TcpNotifyManager : INotifyManager
 
     #region Filename send
 
-    public async Task<Result> SendFilenameAsync(string destinationIp, int port, string filename,
-        CancellationToken token)
+    public async Task<Result> SendFilenameAsync(string destinationIp, string filename, CancellationToken token,
+        int port = 8989)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -318,7 +320,7 @@ public class TcpNotifyManager : INotifyManager
                 Endpoint = _myIp
             };
             var message = JsonConvert.SerializeObject(model);
-            
+
             await this.SendMessageAsync(destinationIp, port, message, token);
             _logger.Info(new
             {
