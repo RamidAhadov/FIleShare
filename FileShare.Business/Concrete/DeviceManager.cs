@@ -9,14 +9,24 @@ namespace FileShare.Business.Concrete;
 public class DeviceManager:IDeviceManager
 {
     private static readonly object lockObject = new ();
+    private int[] _pingProgressCount;
+    private string? _subnetMask;
+    private List<string> _availableIps;
+    private string _localIp;
+
+    public DeviceManager()
+    {
+        _subnetMask = GetSubnetMask();
+        _localIp = GetLocalIPAddress();
+        _availableIps = AllAvailableIPs(_localIp, LoopCounts(_subnetMask));
+    }
     public List<string> GetLocalDeviceIPs(string? subnetMask = default, int timeOut = 500)
     {
         var localDeviceIPs = new List<string>();
-        var IP = GetLocalIPAddress();
-        var sw = Stopwatch.StartNew();
+        var ipAddress = GetLocalIPAddress();
         int[] loopCounts = LoopCounts(subnetMask);
 
-        var fullIPs = AllAvailableIPs(IP, loopCounts);
+        var fullIPs = AllAvailableIPs(ipAddress, loopCounts);
         var threads = new Thread[100];
         int attempt = 0;
         foreach (var ip in fullIPs)
@@ -39,14 +49,10 @@ public class DeviceManager:IDeviceManager
         return localDeviceIPs;
     }
 
-    public async IAsyncEnumerable<string> GetLocalDeviceIPsAsync(string? subnetMask = default, int timeOut = 500)
+    public async IAsyncEnumerable<string> GetLocalDeviceIPsAsync(int timeOut = 500)
     {
-        var IP = GetLocalIPAddress();
-        int[] loopCounts = LoopCounts(subnetMask);
-
-        var fullIPs = AllAvailableIPs(IP, loopCounts);
         var tasks = new List<Task<string?>>();
-        foreach (var ip in fullIPs)
+        foreach (var ip in _availableIps)
         {
             tasks.Add(SendPingAsync(ip, timeOut));
         }
@@ -59,6 +65,10 @@ public class DeviceManager:IDeviceManager
             if (successIP != null)
             {
                 yield return successIP;
+            }
+            else
+            {
+                yield return string.Empty;
             }
         }
     }
@@ -99,6 +109,11 @@ public class DeviceManager:IDeviceManager
         }
 
         return false;
+    }
+
+    public int GetProgressCount()
+    {
+        return _availableIps.Count;
     }
 
     static string GetLocalIPAddress()
@@ -180,6 +195,7 @@ public class DeviceManager:IDeviceManager
         var reply = await ping.SendPingAsync(ip, timeOut);
         if (reply.Status == IPStatus.Success)
         {
+            await Task.Delay(700);
             return ip;
         }
 
