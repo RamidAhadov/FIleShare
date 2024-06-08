@@ -5,6 +5,7 @@ namespace FileShare.Business.Abstraction;
 
 public interface IConnectionManager
 {
-    Task<Result<SftpClient>> ConnectAsServerAsync(CancellationToken token);
-    Task<Result<string>> UploadFileAsync(SftpClient client, string filePath, string receiverIp, CancellationToken token);
+    Task<Result> ConnectServerAsync(CancellationToken token);
+    Task<Result<string>> UploadFileAsync(string filePath, string receiverIp, CancellationToken token);
+    Task<Result> DownloadFileAsync(string filename, string localTargetPath, CancellationToken token);
 }
