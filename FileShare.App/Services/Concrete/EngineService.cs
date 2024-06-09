@@ -22,12 +22,12 @@ public class EngineService : IEngineService
         _logger = LogManager.GetLogger("EngineServiceLogger");
     }
 
-    public async Task<Result> StartEngineAsync(IProgress<int> progress, CancellationToken token)
+    public async Task<Result> StartEngineAsync(IProgress<int> progress, CancellationToken token, bool restart = false)
     {
         var sw = Stopwatch.StartNew();
-        var listenerTask = _notifyManager.CreateListenerAsync(token);
-        var requestListenerTask = _notifyManager.CreateRequestReceiverAsync(token);
-        var responseListenerTask = _notifyManager.CreateResponseReceiverAsync(token);
+        var listenerTask = _notifyManager.CreateListenerAsync(token,restart);
+        var requestListenerTask = _notifyManager.CreateRequestReceiverAsync(token,restart);
+        var responseListenerTask = _notifyManager.CreateResponseReceiverAsync(token,restart);
         var serverTask = _connectionManager.ConnectServerAsync(token);
 
         var tasks = new List<Task<Result>> { listenerTask, requestListenerTask, responseListenerTask, serverTask };

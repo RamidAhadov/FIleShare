@@ -46,20 +46,38 @@ public class TcpNotifyManager : INotifyManager
 
     #region Create TCP listener
 
-    public async Task<Result> CreateListenerAsync(CancellationToken token)
+    public async Task<Result> CreateListenerAsync(CancellationToken token, bool restart)
     {
         var sw = Stopwatch.StartNew();
         try
         {
-            _tcpListener =
-                await StartTcpListenerAsync(_tcpListener, _tcpListenerParameters.Host, _tcpListenerParameters.Port,
-                    token);
-            _logger.Info(new
+            if (restart)
             {
-                Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(CreateListenerAsync),
-                Message =
-                    $"Tcp listener started and listening on: {_tcpListenerParameters.Host}:{_tcpListenerParameters.Port}"
-            }.ToJson());
+                _tcpListener =
+                    await StartTcpListenerAsync(_tcpListener, IPAddress.Any, _tcpListenerParameters.Port,
+                        token);
+                _logger.Info(new
+                {
+                    Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(CreateListenerAsync),
+                    Message =
+                        $"Tcp listener restarted and listening on: {_tcpListenerParameters.Host}:{_tcpListenerParameters.Port}"
+                }.ToJson());
+            }
+            else
+            {
+                if (_tcpListener == null)
+                {
+                    _tcpListener =
+                        await StartTcpListenerAsync(_tcpListener, IPAddress.Any, _tcpListenerParameters.Port,
+                            token);
+                    _logger.Info(new
+                    {
+                        Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(CreateListenerAsync),
+                        Message =
+                            $"Tcp listener started and listening on: {_tcpListenerParameters.Host}:{_tcpListenerParameters.Port}"
+                    }.ToJson());
+                }
+            }
 
             return Result.Ok();
         }
@@ -85,19 +103,36 @@ public class TcpNotifyManager : INotifyManager
         }
     }
 
-    public async Task<Result> CreateRequestReceiverAsync(CancellationToken token)
+    public async Task<Result> CreateRequestReceiverAsync(CancellationToken token, bool restart)
     {
         var sw = Stopwatch.StartNew();
         try
         {
-            _tcpRequestReceiver = await StartTcpListenerAsync(_tcpRequestReceiver, IPAddress.Any,
-                _tcpRequestReceiverParameters.Port, token);
-            _logger.Info(new
+            if (restart)
             {
-                Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(CreateRequestReceiverAsync),
-                Message =
-                    $"Tcp request receiver started and listening on: {_tcpRequestReceiverParameters.Host}:{_tcpRequestReceiverParameters.Port}"
-            }.ToJson());
+                _tcpRequestReceiver = await StartTcpListenerAsync(_tcpRequestReceiver, IPAddress.Any,
+                    _tcpRequestReceiverParameters.Port, token);
+                _logger.Info(new
+                {
+                    Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(CreateRequestReceiverAsync),
+                    Message =
+                        $"Tcp request receiver restarted and listening on: {_tcpRequestReceiverParameters.Host}:{_tcpRequestReceiverParameters.Port}"
+                }.ToJson());
+            }
+            else
+            {
+                if (_tcpRequestReceiver == null)
+                {
+                    _tcpRequestReceiver = await StartTcpListenerAsync(_tcpRequestReceiver, IPAddress.Any,
+                        _tcpRequestReceiverParameters.Port, token);
+                    _logger.Info(new
+                    {
+                        Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(CreateRequestReceiverAsync),
+                        Message =
+                            $"Tcp request receiver started and listening on: {_tcpRequestReceiverParameters.Host}:{_tcpRequestReceiverParameters.Port}"
+                    }.ToJson());
+                }
+            }
 
             return Result.Ok();
         }
@@ -123,19 +158,36 @@ public class TcpNotifyManager : INotifyManager
         }
     }
 
-    public async Task<Result> CreateResponseReceiverAsync(CancellationToken token)
+    public async Task<Result> CreateResponseReceiverAsync(CancellationToken token, bool restart)
     {
         var sw = Stopwatch.StartNew();
         try
         {
-            _tcpResponseReceiver = await StartTcpListenerAsync(_tcpResponseReceiver, IPAddress.Any,
-                _tcpResponseReceiverParameters.Port, token);
-            _logger.Info(new
+            if (restart)
             {
-                Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(CreateResponseReceiverAsync),
-                Message =
-                    $"Tcp response receiver started and listening on: {_tcpResponseReceiverParameters.Host}:{_tcpResponseReceiverParameters.Port}"
-            }.ToJson());
+                _tcpResponseReceiver = await StartTcpListenerAsync(_tcpResponseReceiver, IPAddress.Any,
+                    _tcpResponseReceiverParameters.Port, token);
+                _logger.Info(new
+                {
+                    Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(CreateResponseReceiverAsync),
+                    Message =
+                        $"Tcp response receiver restarted and listening on: {_tcpResponseReceiverParameters.Host}:{_tcpResponseReceiverParameters.Port}"
+                }.ToJson());
+            }
+            else
+            {
+                if (_tcpResponseReceiver == null)
+                {
+                    _tcpResponseReceiver = await StartTcpListenerAsync(_tcpResponseReceiver, IPAddress.Any,
+                        _tcpResponseReceiverParameters.Port, token);
+                    _logger.Info(new
+                    {
+                        Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(CreateResponseReceiverAsync),
+                        Message =
+                            $"Tcp response receiver started and listening on: {_tcpResponseReceiverParameters.Host}:{_tcpResponseReceiverParameters.Port}"
+                    }.ToJson());
+                }
+            }
 
             return Result.Ok();
         }
@@ -372,13 +424,16 @@ public class TcpNotifyManager : INotifyManager
                     Message = "New socket accepted."
                 }.ToJson());
                 AddClient(socket, _tcpClients);
+                sw.Stop();
 
                 yield return socket;
             }
+            else
+            {
+                sw.Stop();
 
-            sw.Stop();
-
-            yield break;
+                yield break;
+            }
         }
     }
 
@@ -575,6 +630,7 @@ public class TcpNotifyManager : INotifyManager
         var stream = tcpClient.GetStream();
         var data = Encoding.UTF8.GetBytes(message);
         await stream.WriteAsync(data, token);
+        await Task.Delay(2000, token);
         await stream.FlushAsync(token);
     }
 }
