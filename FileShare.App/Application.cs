@@ -36,8 +36,6 @@ public partial class Application : Form
     private async void Application_Load(object sender, EventArgs e)
     {
         LoadDirectoryData();
-
-        _ = Task.Run(GetRequestsAsync);
     }
 
     private void LoadDirectoryData(string? path = default)
@@ -193,6 +191,11 @@ public partial class Application : Form
         }
 
         pbarStartEngine.Visible = false;
+        
+        var receiveRequest = Task.Run(GetRequestsAsync);
+
+        await Task.WhenAll(receiveRequest);
+        Console.WriteLine("The end");
     }
 
     private async void btnSendFile_Click(object sender, EventArgs e)
@@ -219,6 +222,9 @@ public partial class Application : Form
 
             return;
         }
+
+        MessageBox.Show($"Request accepted by {_selectedIp}", "Success", MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
 
         var filenameResult = await _fileService.SendFilenameAsync(_selectedIp, _selectedItem, _source.Token);
         if (filenameResult.IsFailed)
@@ -253,27 +259,32 @@ public partial class Application : Form
         var cts = new CancellationTokenSource();
         await foreach (var request in _fileService.GetRequestAsync(cts.Token))
         {
-            var dialogResult = MessageBox.Show($"Received request: {request}\nDo you want to process this request?", "Request Received", MessageBoxButtons.YesNo);
+            var dialogResult = MessageBox.Show($"Received request: {request}\nDo you want to process this request?",
+                "Request Received", MessageBoxButtons.YesNo);
 
             if (dialogResult == DialogResult.Yes)
             {
                 var result = await ProcessRequest(request, cts.Token);
                 if (result.IsFailed)
                 {
-                    MessageBox.Show("Response did not send to user.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Response did not send to user.", "Error", MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
                 }
-                
-                MessageBox.Show("Response successfully sent. Waiting dor the file.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                MessageBox.Show("Response successfully sent. Waiting dor the file.", "Info", MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
             }
             else
             {
                 var result = await IgnoreRequest(request, cts.Token);
                 if (result.IsFailed)
                 {
-                    MessageBox.Show("Response did not send to user.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Response did not send to user.", "Error", MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
                 }
-                
-                MessageBox.Show("Response successfully sent. File did not accepted.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                MessageBox.Show("Response successfully sent. File did not accepted.", "Info", MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
             }
         }
     }
@@ -282,7 +293,7 @@ public partial class Application : Form
     {
         return await _fileService.SendResponseAsync(Responses.Accept, destinationIp, token);
     }
-    
+
     private async Task<Result> IgnoreRequest(string destinationIp, CancellationToken token)
     {
         return await _fileService.SendResponseAsync(Responses.Reject, destinationIp, token);
