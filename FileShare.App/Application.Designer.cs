@@ -40,6 +40,7 @@ namespace FileShare.App
             icons = new ImageList(components);
             btnSearchDevice = new Button();
             btnStartEngine = new Button();
+            btnRestartEngine = new Button();
             pnlDevices = new Panel();
             pbarSearchDevices = new ProgressBar();
             pbarStartEngine = new ProgressBar();
@@ -65,6 +66,7 @@ namespace FileShare.App
             pnlCommon.Controls.Add(pnlDirectory);
             pnlCommon.Controls.Add(btnSearchDevice);
             pnlCommon.Controls.Add(btnStartEngine);
+            pnlCommon.Controls.Add(btnRestartEngine);
             pnlCommon.Controls.Add(pbarSearchDevices);
             pnlCommon.Controls.Add(pbarStartEngine);
             pnlCommon.Controls.Add(pbarSendFile);
@@ -130,6 +132,16 @@ namespace FileShare.App
             btnStartEngine.Text = "Start engine";
             btnStartEngine.UseVisualStyleBackColor = true;
             btnStartEngine.Click += btnStartEngine_Click;
+            // 
+            // btnStartEngine
+            // 
+            btnRestartEngine.Location = new Point(451, 12);
+            btnRestartEngine.Name = "btnRestartEngine";
+            btnRestartEngine.Size = new Size(220, 60);
+            btnRestartEngine.TabIndex = 2;
+            btnRestartEngine.Text = "Restart engine";
+            btnRestartEngine.UseVisualStyleBackColor = true;
+            btnRestartEngine.Click += btnRestartEngine_Click;
             //
             // pbarSearchDevices
             //
@@ -187,6 +199,7 @@ namespace FileShare.App
         private Panel pnlDevices;
         private Button btnSearchDevice;
         private Button btnStartEngine;
+        private Button btnRestartEngine;
         private Panel pnlCommon;
         private TreeView tvDirectory;
         private Panel pnlDirectory;

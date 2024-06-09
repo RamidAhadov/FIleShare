@@ -198,6 +198,11 @@ public partial class Application : Form
         Console.WriteLine("The end");
     }
 
+    private async void btnRestartEngine_Click(object sender, EventArgs e)
+    {
+        
+    }
+
     private async void btnSendFile_Click(object sender, EventArgs e)
     {
         if (_selectedItem == null)
