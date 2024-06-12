@@ -25,7 +25,7 @@ public class AutofacBusinessModule:Module
         
         //Modules
         var configurationBuilder = new ConfigurationBuilder()
-            .AddJsonFile("C:\\Users\\ASUS\\RiderProjects\\FileShare\\FileShare.App\\appsettings.json")
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
         builder.RegisterInstance(configurationBuilder).As<IConfigurationRoot>().SingleInstance();
     }
