@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using FileShare.Business.Abstraction;
 using FileShare.Configuration.Abstraction;
+using FileShare.Configuration.ConfigItem;
 using FileShare.Configuration.ConfigItem.Concrete;
 using FluentResults;
 using NLog;
@@ -11,16 +12,18 @@ namespace FileShare.Business.Concrete;
 
 public class SftpConnectionManager : IConnectionManager
 {
-    private SftpClient _sftpClient;
+    private static SftpClient _sftpClient;
 
     private readonly ConnectionParameters _connectionParameters;
     private readonly SftpDirectory _sftpDirectory;
+    private readonly DownloadDirectory _downloadDirectory;
     private readonly Logger _logger;
 
     public SftpConnectionManager(IConfigFactory configFactory)
     {
         _connectionParameters = (ConnectionParameters)configFactory.GetConfiguration("ConnectionParameters");
         _sftpDirectory = (SftpDirectory)configFactory.GetConfiguration("SftpDirectory");
+        _downloadDirectory = (DownloadDirectory)configFactory.GetConfiguration("DownloadDirectory");
         _logger = LogManager.GetLogger("ConnectionManagerLogger");
     }
 
@@ -72,22 +75,32 @@ public class SftpConnectionManager : IConnectionManager
         }
     }
 
-    public async Task<Result<string>> UploadFileAsync(string filePath, string receiverIp,
-        CancellationToken token)
+    public async Task<Result<string>> UploadFileAsync(string filePath, string receiverIp, CancellationToken token)
     {
         var sw = Stopwatch.StartNew();
         try
         {
+            if (!File.Exists(filePath))
+            {
+                return Result.Fail(errorMessage: $"File '{filePath}' does not exist.");
+            }
+
             var fileName = Path.GetFileName(filePath) + "-" + receiverIp;
-            using (var fileStream = new FileStream(filePath, FileMode.Open))
+
+            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             {
                 await Task.Run(
-                    () => { _sftpClient.UploadFile(fileStream, _sftpDirectory.Path + fileName, UploadProgressCallback); },
+                    () =>
+                    {
+                        _sftpClient.UploadFile(fileStream, _sftpDirectory.Path + fileName, UploadProgressCallback);
+                    },
                     token);
             }
+
             _logger.Info(new
             {
-                Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(UploadFileAsync),
+                Elapsed = $"{sw.ElapsedMilliseconds} ms",
+                Method = nameof(UploadFileAsync),
                 Message = $"File uploaded from {filePath} to {_sftpDirectory.Path} directory."
             });
 
@@ -97,7 +110,8 @@ public class SftpConnectionManager : IConnectionManager
         {
             _logger.Info(new
             {
-                Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(UploadFileAsync),
+                Elapsed = $"{sw.ElapsedMilliseconds} ms",
+                Method = nameof(UploadFileAsync),
                 Message = "Operation was cancelled."
             });
 
@@ -107,7 +121,8 @@ public class SftpConnectionManager : IConnectionManager
         {
             _logger.Error(new
             {
-                Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(UploadFileAsync),
+                Elapsed = $"{sw.ElapsedMilliseconds} ms",
+                Method = nameof(UploadFileAsync),
                 Message = e.InnerException?.Message ?? e.Message
             }.ToJson());
 
@@ -117,14 +132,17 @@ public class SftpConnectionManager : IConnectionManager
         {
             _logger.Info(new
             {
-                Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(UploadFileAsync),
-                Message = "Process completed.."
+                Elapsed = $"{sw.ElapsedMilliseconds} ms",
+                Method = nameof(UploadFileAsync),
+                Message = "Process completed."
             });
             sw.Stop();
         }
     }
 
-    public async Task<Result> DownloadFileAsync(string filename, string localTargetPath, CancellationToken token)
+
+    public async Task<Result> DownloadFileAsync(string filename, CancellationToken token,
+        string? localTargetPath = default)//TODO - filename is the path of the file where located on senders end. Just need a filename + endpoint.
     {
         var sw = Stopwatch.StartNew();
         try
@@ -132,12 +150,22 @@ public class SftpConnectionManager : IConnectionManager
             var remoteFilePath = Path.Combine(_sftpDirectory.Path, filename);
             var dashIndex = filename.LastIndexOf('-');
             filename = filename[..dashIndex];
-            var localFilePath = Path.Combine(localTargetPath, filename);
-            using (var file = File.OpenWrite(localFilePath))
+            string localFilePath;
+            if (localTargetPath != null)
             {
-                await Task.Run(() => { _sftpClient.DownloadFile(remoteFilePath,file,DownloadProgressCallback); }, token);
+                localFilePath = Path.Combine(localTargetPath, filename);
+            }
+            else
+            {
+                localFilePath = Path.Combine(_downloadDirectory.Path, filename);
             }
             
+            using (var file = File.OpenWrite(localFilePath))
+            {
+                await Task.Run(() => { _sftpClient.DownloadFile(remoteFilePath, file, DownloadProgressCallback); },
+                    token);
+            }
+
             _logger.Info(new
             {
                 Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(DownloadFileAsync),
@@ -163,11 +191,9 @@ public class SftpConnectionManager : IConnectionManager
                 Elapsed = $"{sw.ElapsedMilliseconds} ms", Method = nameof(DownloadFileAsync),
                 Message = e.InnerException?.Message ?? e.Message
             }.ToJson());
-            
+
             return Result.Fail(errorMessage: e.InnerException?.Message ?? e.Message);
         }
-
-        
     }
 
 
@@ -177,7 +203,7 @@ public class SftpConnectionManager : IConnectionManager
                 { Method = nameof(UploadFileAsync), Message = $"File uploaded to the server. Bytes: {uploadBytes}" }
             .ToJson());
     }
-    
+
     private void DownloadProgressCallback(ulong uploadBytes)
     {
         _logger.Info(new
