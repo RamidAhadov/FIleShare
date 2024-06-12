@@ -191,7 +191,7 @@ public partial class Application : Form
         }
 
         pbarStartEngine.Visible = false;
-        
+
         var receiveRequest = Task.Run(GetRequestsAsync);
 
         await Task.WhenAll(receiveRequest);
@@ -200,7 +200,6 @@ public partial class Application : Form
 
     private async void btnRestartEngine_Click(object sender, EventArgs e)
     {
-        
     }
 
     private async void btnSendFile_Click(object sender, EventArgs e)
@@ -219,7 +218,10 @@ public partial class Application : Form
             return;
         }
 
-        var requestResult = await _fileService.SendRequestAsync(_selectedIp, _source.Token);
+        var destinationIp = _selectedIp;
+        var filename = _selectedItem;
+
+        var requestResult = await _fileService.SendRequestAsync(destinationIp, _source.Token);
         if (requestResult.IsFailed)
         {
             MessageBox.Show(requestResult.Errors.FirstOrDefault()?.Message, "Reject", MessageBoxButtons.OK,
@@ -228,10 +230,19 @@ public partial class Application : Form
             return;
         }
 
-        MessageBox.Show($"Request accepted by {_selectedIp}", "Success", MessageBoxButtons.OK,
+        MessageBox.Show($"Request accepted by {destinationIp}", "Success", MessageBoxButtons.OK,
             MessageBoxIcon.Information);
 
-        var filenameResult = await _fileService.SendFilenameAsync(_selectedIp, _selectedItem, _source.Token);
+        var downloadResult = await _fileService.UploadFileAsync(filename, destinationIp, _source.Token);
+        if (downloadResult.IsFailed)
+        {
+            MessageBox.Show("The specified file was not downloaded to the server.", "Error", MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+
+            return;
+        }
+
+        var filenameResult = await _fileService.SendFilenameAsync(destinationIp, filename, _source.Token);
         if (filenameResult.IsFailed)
         {
             MessageBox.Show(requestResult.Errors.FirstOrDefault()?.Message, "Reject", MessageBoxButtons.OK,
@@ -264,7 +275,8 @@ public partial class Application : Form
         var cts = new CancellationTokenSource();
         await foreach (var request in _fileService.GetRequestAsync(cts.Token))
         {
-            var dialogResult = MessageBox.Show($"Received request: {request}\nDo you want to process this request?",
+            var dialogResult = MessageBox.Show(
+                $"{request} wants to send you file. \nDo you want to process this request?",
                 "Request Received", MessageBoxButtons.YesNo);
 
             if (dialogResult == DialogResult.Yes)
@@ -276,7 +288,18 @@ public partial class Application : Form
                         MessageBoxIcon.Error);
                 }
 
-                MessageBox.Show("Response successfully sent. Waiting dor the file.", "Info", MessageBoxButtons.OK,
+                MessageBox.Show("Response successfully sent. Waiting for the file.", "Info", MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                await foreach (var filename in _fileService.GetReceivedFilenameAsync(_source.Token))
+                {
+                    await _fileService.DownloadFileAsync(filename.Message, null,
+                        _source.Token);
+
+                    break;
+                }
+
+                MessageBox.Show("File downloaded successfully.", "Info", MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
             else
@@ -288,7 +311,7 @@ public partial class Application : Form
                         MessageBoxIcon.Error);
                 }
 
-                MessageBox.Show("Response successfully sent. File did not accepted.", "Info", MessageBoxButtons.OK,
+                MessageBox.Show("File did not accepted.", "Info", MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
         }
